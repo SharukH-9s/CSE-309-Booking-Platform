@@ -5,7 +5,11 @@ from routers.events import router as events_router
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Event Booking Platform")
+app = FastAPI(
+    title="Event Booking Platform",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,
