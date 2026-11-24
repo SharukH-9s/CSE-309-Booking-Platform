@@ -3,7 +3,7 @@
 ## Project Name: Event Booking Platform
 **Course:** CSE-309 Web Engineering  
 **Project Type:** Course Project  
-**Stack:** FastAPI, React (TypeScript), SQLite / SQLAlchemy, Vercel  
+**Stack:** FastAPI, React (TypeScript), PostgreSQL / SQLAlchemy, Vercel
 
 ---
 
@@ -13,7 +13,7 @@
 |---|---|---|
 | **Frontend** | React 19 + TypeScript + Vite | Single-page application for the user interface |
 | **Backend** | Python 3.10+, FastAPI, Pydantic | REST API, data validation, and business logic |
-| **Database** | SQLite (`events.db`) | Local file-based SQL database, zero setup needed |
+| **Database** | PostgreSQL | Persistent relational database for local and deployed environments |
 | **ORM** | SQLAlchemy | Models and database queries in Python |
 | **Authentication** | JWT (`python-jose`), `passlib[bcrypt]` | Token-based login and secure password hashing |
 | **Authorization** | FastAPI Dependencies | Protects endpoints based on user roles (`admin`, `manager`, `user`) |
@@ -33,15 +33,15 @@ The application is structured as a full-stack monorepo with two main folders:
 ```
 User Browser
     │
-    ├── /api/* ─────────► FastAPI Backend ───► SQLite (events.db)
+    ├── /api/* ─────────► FastAPI Backend ───► PostgreSQL
     └── (all other routes) ──► React SPA (Vite build)
 ```
 
 ---
 
-## 3. Database Schema (SQLite / SQLAlchemy)
+## 3. Database Schema (PostgreSQL / SQLAlchemy)
 
-We use SQLite for local persistence with SQLAlchemy ORM.
+We use PostgreSQL for persistence with SQLAlchemy ORM.
 
 ### 3.1 Table: `users` `[Beta]`
 Stores registered accounts and their platform role.
@@ -138,7 +138,7 @@ Records completed reservations.
 ### 5.1 Booking Logic and Stock Control
 To prevent overselling tickets, the booking endpoint uses a database transaction:
 1. Client sends `POST /api/bookings` with `{ ticket_id, quantity, user_name, user_email }`.
-2. Backend queries the ticket record from SQLite inside a transaction.
+2. Backend queries the ticket record from PostgreSQL inside a transaction.
 3. If `ticket.available_quantity < quantity`, return HTTP 400 (`"Not enough tickets available"`).
 4. Otherwise, subtract: `ticket.available_quantity -= quantity`.
 5. Insert a new row into the `bookings` table.
@@ -179,7 +179,7 @@ IUB/
 ├── backend/                    # FastAPI backend
 │   ├── main.py                 # FastAPI app entry point & route definitions
 │   ├── requirements.txt        # Python packages (fastapi, uvicorn, sqlalchemy, etc.)
-│   ├── database.py             # SQLite engine and session maker
+│   ├── database.py             # PostgreSQL engine and session maker
 │   ├── models.py               # SQLAlchemy models (User, Event, Ticket, Booking)
 │   ├── schemas.py              # Pydantic schemas for request/response validation
 │   ├── auth.py                 # JWT token generation and bcrypt password hashing
@@ -247,7 +247,7 @@ The project uses `vercel.json` at the root of the repository so both the React b
 | `SECRET_KEY` | Backend | Secret string used for signing JWT tokens | Beta |
 | `ALGORITHM` | Backend | JWT hashing algorithm (`HS256`) | Beta |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Backend | Token validity period (e.g. 60) | Beta |
-| `DATABASE_URL` | Backend | Path to SQLite database file (default: `sqlite:///./events.db`) | MVP + Beta |
+| `DATABASE_URL` | Backend | PostgreSQL connection URL using the Psycopg driver | MVP + Beta |
 
 For local testing, environment variables can be set in a `.env` file in `backend/`. On Vercel, they are entered under Project Settings -> Environment Variables.
 
@@ -256,7 +256,7 @@ For local testing, environment variables can be set in a `.env` file in `backend
 ## 9. Implementation Milestones
 
 ### Milestone 1: MVP (Mid-Term Demo)
-1. **Database Setup:** SQLite connection and SQLAlchemy models for `Event`, `Ticket`, and `Booking`.
+1. **Database Setup:** PostgreSQL connection and SQLAlchemy models for `Event`, `Ticket`, and `Booking`.
 2. **Core Endpoints:** Endpoints for event CRUD, adding/deleting tickets, and submitting bookings with seat checks.
 3. **Swagger UI Testing:** Test all endpoints directly at `/docs`.
 4. **Basic UI:** React pages to display events, open an event, and book tickets through a simple form.

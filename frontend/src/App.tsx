@@ -1,54 +1,76 @@
-import { useState, useEffect, FormEvent } from "react"
-import { Event, EventForm } from "./types"
-import { getEvents, getEvent, createEvent, updateEvent, deleteEvent } from "./api"
+import { FormEvent, useEffect, useState } from "react"
+import {
+  changePassword,
+  createEvent,
+  createManager,
+  deleteEvent,
+  getEvent,
+  getEvents,
+  getMe,
+  login,
+  register,
+  setToken,
+  updateMe,
+  updateEvent,
+} from "./api"
+import { Event, EventForm, User } from "./types"
 
-type View = "list" | "detail" | "create" | "edit"
+type View = "list" | "detail" | "create" | "edit" | "login" | "register" | "manager" | "profile"
 
-const emptyForm: EventForm = { title: "", description: "", location: "", event_date: "" }
+const emptyEventForm: EventForm = { title: "", description: "", location: "", event_date: "" }
 
 export default function App() {
   const [view, setView] = useState<View>("list")
   const [events, setEvents] = useState<Event[]>([])
   const [selected, setSelected] = useState<Event | null>(null)
-  const [form, setForm] = useState<EventForm>(emptyForm)
+  const [eventForm, setEventForm] = useState<EventForm>(emptyEventForm)
+  const [user, setUser] = useState<User | null>(null)
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (view === "list") loadEvents()
-  }, [view])
+    const token = localStorage.getItem("access_token")
+    if (token) {
+      getMe().then(setUser).catch(() => {
+        setToken(null)
+        setUser(null)
+      })
+    }
+    void loadEvents()
+  }, [])
 
   async function loadEvents() {
     setLoading(true)
     try {
-      const data = await getEvents()
-      setEvents(data)
-    } catch {
-      setError("Could not load events.")
+      setEvents(await getEvents())
+      setError("")
+    } catch (err) {
+      setError(errorMessage(err, "Could not load events."))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function openDetail(id: number) {
     setError("")
     try {
-      const event = await getEvent(id)
-      setSelected(event)
+      setSelected(await getEvent(id))
       setView("detail")
-    } catch {
-      setError("Could not load event.")
+    } catch (err) {
+      setError(errorMessage(err, "Could not load event."))
     }
   }
 
   function openCreate() {
-    setForm(emptyForm)
+    setEventForm(emptyEventForm)
     setError("")
     setView("create")
   }
 
   function openEdit() {
     if (!selected) return
-    setForm({
+    setEventForm({
       title: selected.title,
       description: selected.description ?? "",
       location: selected.location,
@@ -58,76 +80,230 @@ export default function App() {
     setView("edit")
   }
 
-  async function handleCreate(e: FormEvent) {
-    e.preventDefault()
+  async function handleEventSubmit(event: FormEvent) {
+    event.preventDefault()
     setError("")
     try {
-      await createEvent(form)
+      if (view === "create") await createEvent(eventForm)
+      else if (selected) await updateEvent(selected.id, eventForm)
       setView("list")
-    } catch {
-      setError("Failed to create event.")
-    }
-  }
-
-  async function handleUpdate(e: FormEvent) {
-    e.preventDefault()
-    if (!selected) return
-    setError("")
-    try {
-      await updateEvent(selected.id, form)
-      setView("list")
-    } catch {
-      setError("Failed to update event.")
+      await loadEvents()
+    } catch (err) {
+      setError(errorMessage(err, "Could not save event."))
     }
   }
 
   async function handleDelete() {
-    if (!selected) return
-    if (!confirm("Delete this event?")) return
+    if (!selected || !confirm("Delete this event?")) return
     setError("")
     try {
       await deleteEvent(selected.id)
       setSelected(null)
       setView("list")
-    } catch {
-      setError("Failed to delete event.")
+      await loadEvents()
+    } catch (err) {
+      setError(errorMessage(err, "Could not delete event."))
     }
   }
 
-  function handleField(field: keyof EventForm, value: string) {
-    setForm({ ...form, [field]: value })
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const values = new FormData(event.currentTarget)
+    try {
+      const result = await login({
+        email: String(values.get("email")),
+        password: String(values.get("password")),
+      })
+      setToken(result.access_token)
+      setUser(result.user)
+      setError("")
+      setView("list")
+      await loadEvents()
+    } catch (err) {
+      setError(errorMessage(err, "Could not log in."))
+    }
+  }
+
+  async function handleRegister(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const values = new FormData(event.currentTarget)
+    const account = {
+      name: String(values.get("name")),
+      email: String(values.get("email")),
+      phone: String(values.get("phone")),
+      password: String(values.get("password")),
+    }
+    try {
+      await register(account)
+      const result = await login({ email: account.email, password: account.password })
+      setToken(result.access_token)
+      setUser(result.user)
+      setError("")
+      setView("list")
+      await loadEvents()
+    } catch (err) {
+      setError(errorMessage(err, "Could not create account."))
+    }
+  }
+
+  async function handleManagerCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selected) return
+    const values = new FormData(event.currentTarget)
+    try {
+      await createManager({
+        name: String(values.get("name")),
+        email: String(values.get("email")),
+        phone: String(values.get("phone")) || undefined,
+        password: String(values.get("password")),
+        event_id: selected.id,
+      })
+      setSelected(await getEvent(selected.id))
+      setView("detail")
+      setError("")
+    } catch (err) {
+      setError(errorMessage(err, "Could not create manager."))
+    }
+  }
+
+  async function handleProfileUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const values = new FormData(event.currentTarget)
+    try {
+      const updated = await updateMe({
+        name: String(values.get("name")),
+        email: String(values.get("email")),
+        phone: String(values.get("phone")) || null,
+      })
+      setUser(updated)
+      setError("")
+      setNotice("Profile updated.")
+    } catch (err) {
+      setError(errorMessage(err, "Could not update profile."))
+      setNotice("")
+    }
+  }
+
+  async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const values = new FormData(event.currentTarget)
+    try {
+      await changePassword({
+        current_password: String(values.get("current_password")),
+        new_password: String(values.get("new_password")),
+      })
+      event.currentTarget.reset()
+      setError("")
+      setNotice("Password changed.")
+    } catch (err) {
+      setError(errorMessage(err, "Could not change password."))
+      setNotice("")
+    }
+  }
+
+  function logout() {
+    setToken(null)
+    setUser(null)
+    setView("list")
+    void loadEvents()
+  }
+
+  function handleEventField(field: keyof EventForm, value: string) {
+    setEventForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const canManageSelected = Boolean(
+    selected && (user?.role === "admin" || (user?.role === "manager" && selected.manager_id === user.id)),
+  )
+
+  if (view === "login" || view === "register") {
+    const isRegister = view === "register"
+    return (
+      <div className="container">
+        <button onClick={() => { setError(""); setView("list") }}>← Back to events</button>
+        <h1>{isRegister ? "Create account" : "Log in"}</h1>
+        {error && <p className="error">{error}</p>}
+        <form onSubmit={isRegister ? handleRegister : handleLogin}>
+          {isRegister && <div className="field"><label>Name</label><input name="name" required /></div>}
+          <div className="field"><label>Email</label><input name="email" type="email" required /></div>
+          {isRegister && <div className="field"><label>Phone (optional)</label><input name="phone" /></div>}
+          <div className="field"><label>Password</label><input name="password" type="password" minLength={8} required /></div>
+          <button type="submit">{isRegister ? "Register" : "Log in"}</button>
+        </form>
+        <p>
+          {isRegister ? "Already have an account? " : "Need an account? "}
+          <button className="link-button" onClick={() => { setError(""); setView(isRegister ? "login" : "register") }}>
+            {isRegister ? "Log in" : "Register"}
+          </button>
+        </p>
+      </div>
+    )
+  }
+
+  if (view === "manager" && selected) {
+    return (
+      <div className="container">
+        <button onClick={() => setView("detail")}>← Back to event</button>
+        <h2>Create manager for {selected.title}</h2>
+        {error && <p className="error">{error}</p>}
+        <form onSubmit={handleManagerCreate}>
+          <div className="field"><label>Name</label><input name="name" required /></div>
+          <div className="field"><label>Email</label><input name="email" type="email" required /></div>
+          <div className="field"><label>Phone (optional)</label><input name="phone" /></div>
+          <div className="field"><label>Initial password</label><input name="password" type="password" minLength={8} required /></div>
+          <button type="submit">Create and assign manager</button>
+        </form>
+      </div>
+    )
+  }
+
+  if (view === "profile" && user) {
+    return (
+      <div className="container">
+        <button onClick={() => { setError(""); setNotice(""); setView("list") }}>← Back to events</button>
+        <h1>Profile</h1>
+        {error && <p className="error">{error}</p>}
+        {notice && <p>{notice}</p>}
+        <h2>Account details</h2>
+        <form onSubmit={(event) => void handleProfileUpdate(event)}>
+          <div className="field"><label>Name</label><input name="name" defaultValue={user.name} required /></div>
+          <div className="field"><label>Email</label><input name="email" type="email" defaultValue={user.email} required /></div>
+          <div className="field"><label>Phone</label><input name="phone" defaultValue={user.phone ?? ""} /></div>
+          <button type="submit">Save profile</button>
+        </form>
+        <h2>Change password</h2>
+        <form onSubmit={(event) => void handlePasswordChange(event)}>
+          <div className="field"><label>Current password</label><input name="current_password" type="password" required /></div>
+          <div className="field"><label>New password</label><input name="new_password" type="password" minLength={8} required /></div>
+          <button type="submit">Change password</button>
+        </form>
+      </div>
+    )
   }
 
   if (view === "list") {
     return (
       <div className="container">
         <h1>Event Booking Platform</h1>
-        <button onClick={openCreate}>+ Add Event</button>
+        <div className="actions">
+          {user ? <><span>{user.name} ({user.role})</span><button onClick={() => { setError(""); setNotice(""); setView("profile") }}>Profile</button><button onClick={logout}>Log out</button></> : <>
+            <button onClick={() => { setError(""); setView("login") }}>Log in</button>
+            <button onClick={() => { setError(""); setView("register") }}>Register</button>
+          </>}
+          {user?.role === "admin" && <button onClick={openCreate}>+ Add Event</button>}
+        </div>
         {error && <p className="error">{error}</p>}
         {loading && <p>Loading...</p>}
         {!loading && events.length === 0 && <p>No events yet.</p>}
         {events.length > 0 && (
           <table>
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Location</th>
-                <th>Date</th>
-                <th></th>
+            <thead><tr><th>Title</th><th>Location</th><th>Date</th><th></th></tr></thead>
+            <tbody>{events.map((event) => (
+              <tr key={event.id}>
+                <td>{event.title}</td><td>{event.location}</td><td>{event.event_date}</td>
+                <td><button onClick={() => void openDetail(event.id)}>View</button></td>
               </tr>
-            </thead>
-            <tbody>
-              {events.map((ev) => (
-                <tr key={ev.id}>
-                  <td>{ev.title}</td>
-                  <td>{ev.location}</td>
-                  <td>{ev.event_date}</td>
-                  <td>
-                    <button onClick={() => openDetail(ev.id)}>View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            ))}</tbody>
           </table>
         )}
       </div>
@@ -142,61 +318,38 @@ export default function App() {
         <p><strong>Location:</strong> {selected.location}</p>
         <p><strong>Date:</strong> {selected.event_date}</p>
         {selected.description && <p><strong>Description:</strong> {selected.description}</p>}
-        <p><strong>Created:</strong> {new Date(selected.created_at).toLocaleDateString()}</p>
         {error && <p className="error">{error}</p>}
-        <div className="actions">
+        {canManageSelected && <div className="actions">
           <button onClick={openEdit}>Edit</button>
-          <button className="danger" onClick={handleDelete}>Delete</button>
-        </div>
+          <button className="danger" onClick={() => void handleDelete()}>Delete</button>
+        </div>}
+        {user?.role === "admin" && selected.manager_id === null && (
+          <button onClick={() => { setError(""); setView("manager") }}>Assign manager</button>
+        )}
       </div>
     )
   }
 
-  if (view === "create" || view === "edit") {
+  if ((view === "create" || view === "edit") && (view === "create" ? user?.role === "admin" : canManageSelected)) {
     return (
       <div className="container">
         <button onClick={() => setView(view === "edit" ? "detail" : "list")}>← Back</button>
         <h2>{view === "create" ? "Add Event" : "Edit Event"}</h2>
         {error && <p className="error">{error}</p>}
-        <form onSubmit={view === "create" ? handleCreate : handleUpdate}>
-          <div className="field">
-            <label>Title</label>
-            <input
-              value={form.title}
-              onChange={(e) => handleField("title", e.target.value)}
-              required
-            />
-          </div>
-          <div className="field">
-            <label>Location</label>
-            <input
-              value={form.location}
-              onChange={(e) => handleField("location", e.target.value)}
-              required
-            />
-          </div>
-          <div className="field">
-            <label>Date</label>
-            <input
-              type="date"
-              value={form.event_date}
-              onChange={(e) => handleField("event_date", e.target.value)}
-              required
-            />
-          </div>
-          <div className="field">
-            <label>Description</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => handleField("description", e.target.value)}
-              rows={3}
-            />
-          </div>
+        <form onSubmit={(event) => void handleEventSubmit(event)}>
+          <div className="field"><label>Title</label><input value={eventForm.title} onChange={(e) => handleEventField("title", e.target.value)} required /></div>
+          <div className="field"><label>Location</label><input value={eventForm.location} onChange={(e) => handleEventField("location", e.target.value)} required /></div>
+          <div className="field"><label>Date</label><input type="date" value={eventForm.event_date} onChange={(e) => handleEventField("event_date", e.target.value)} required /></div>
+          <div className="field"><label>Description</label><textarea value={eventForm.description} onChange={(e) => handleEventField("description", e.target.value)} rows={3} /></div>
           <button type="submit">{view === "create" ? "Create Event" : "Save Changes"}</button>
         </form>
       </div>
     )
   }
 
-  return null
+  return <div className="container"><p>You do not have access to this action.</p><button onClick={() => setView("list")}>Back to events</button></div>
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback
 }

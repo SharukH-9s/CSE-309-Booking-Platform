@@ -3,7 +3,7 @@
 ## Project Name: Event Booking Platform
 **Course:** CSE-309 Web Engineering  
 **Project Type:** Course Project  
-**Tech Stack:** FastAPI (Python), React + TypeScript (Vite), SQLite / SQLAlchemy, Vercel  
+**Tech Stack:** FastAPI (Python), React + TypeScript (Vite), PostgreSQL / SQLAlchemy, Vercel
 
 ---
 
@@ -141,7 +141,7 @@ The platform is designed for four primary target user roles:
 | View Bookings | Bookings can be listed showing attendee name, event, and ticket tier | MVP |
 | Frontend-Backend Connection | React frontend fetches data from FastAPI and completes a booking flow | MVP |
 | User Signup & Login | Users can register and log in; system returns a valid JWT token | Beta |
-| Password Security | Passwords are saved as bcrypt hashes in SQLite, never plaintext | Beta |
+| Password Security | Passwords are saved as bcrypt hashes in PostgreSQL, never plaintext | Beta |
 | Role Permissions | Admins, Managers, and Users can only access their allowed endpoints | Beta |
 | Manager Scoping | Managers only have access to modify tickets and see attendees for their assigned events | Beta |
 | My Bookings View | Logged-in users can view their personal booking history | Beta |

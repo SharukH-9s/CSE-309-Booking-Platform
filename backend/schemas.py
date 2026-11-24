@@ -1,19 +1,80 @@
 from datetime import datetime
-from pydantic import BaseModel
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    MANAGER = "manager"
+    USER = "user"
+
+
+class UserRegister(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=3, max_length=255, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+    password: str = Field(min_length=8, max_length=128)
+    phone: str | None = Field(default=None, max_length=40)
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserProfileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    email: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=255,
+        pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$",
+    )
+    phone: str | None = Field(default=None, max_length=40)
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class ManagerCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    email: str = Field(min_length=3, max_length=255, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+    password: str = Field(min_length=8, max_length=128)
+    phone: str | None = Field(default=None, max_length=40)
+    event_id: int
+
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    phone: str | None
+    role: UserRole
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 
 class EventCreate(BaseModel):
-    title: str
+    title: str = Field(min_length=1, max_length=200)
     description: str | None = None
-    location: str
-    event_date: str
+    location: str = Field(min_length=1, max_length=255)
+    event_date: str = Field(min_length=1, max_length=40)
 
 
 class EventUpdate(BaseModel):
-    title: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
-    location: str | None = None
-    event_date: str | None = None
+    location: str | None = Field(default=None, min_length=1, max_length=255)
+    event_date: str | None = Field(default=None, min_length=1, max_length=40)
 
 
 class EventResponse(BaseModel):
@@ -22,7 +83,7 @@ class EventResponse(BaseModel):
     description: str | None
     location: str
     event_date: str
+    manager_id: int | None
     created_at: datetime
 
-    model_config = {"from_attributes": True}
-
+    model_config = ConfigDict(from_attributes=True)

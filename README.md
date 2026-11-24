@@ -46,6 +46,12 @@ vercel dev -L
 
 > Add new Python packages to `backend/requirements.txt`.
 
+## Backend environment
+
+Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` to your PostgreSQL connection URL, along with the JWT secret and initial admin's name, email, phone, and password. Install the backend requirements, including the Psycopg 3 PostgreSQL driver. On startup, the backend creates the required tables and creates the admin only if the email is not already registered. Public registration always creates a regular `user`; admins create and assign manager accounts from an event.
+
+Set the same variables in the deployment environment. Use a managed PostgreSQL database and keep its connection URL in the host's secret environment settings.
+
 ## Class exercise
 
 Send an ID, name and email from React to FastAPI and show the reply.

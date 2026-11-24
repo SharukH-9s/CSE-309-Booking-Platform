@@ -13,7 +13,7 @@
 This document outlines the software requirements for the Event Booking Platform. The app allows users to browse campus events, book tickets, and manage reservations, while providing organizers and administrators with tools to manage event details and seat inventory.
 
 ### 1.2 Scope
-The system is built as a single-page React frontend connected to a FastAPI backend with SQLite storage. The project deliverables are split into two phases:
+The system is built as a single-page React frontend connected to a FastAPI backend with PostgreSQL storage. The project deliverables are split into two phases:
 - **MVP (Mid-Term):** Core CRUD endpoints for events and tickets, basic seat booking with quantity checks, and unauthenticated frontend testing.
 - **Beta (Final):** User registration and login (JWT), role-based permissions (Admin, Manager, User), manager assignment to events, personal booking dashboards, and deployment on Vercel.
 
@@ -21,7 +21,7 @@ The system is built as a single-page React frontend connected to a FastAPI backe
 
 ## 2. Technology Stack
 
-- **Backend:** Python 3.10+, FastAPI, SQLAlchemy, SQLite, Pydantic
+- **Backend:** Python 3.10+, FastAPI, SQLAlchemy, PostgreSQL, Pydantic
 - **Frontend:** React 19, TypeScript, Vite, CSS
 - **Authentication (Beta):** JWT (JSON Web Tokens) with passlib / bcrypt password hashing
 - **Deployment (Beta):** Vercel (monorepo setup using `vercel.json`)
@@ -186,11 +186,11 @@ The system is built as a single-page React frontend connected to a FastAPI backe
 - User-friendly error messages when actions fail (e.g., "Sold Out", "Invalid email or password", "You do not have permission").
 
 ### 6.2 Reliability & Concurrency
-- SQLite database transactions during booking creation so two users cannot book the last seat at the exact same moment.
+- PostgreSQL database transactions during booking creation so two users cannot book the last seat at the exact same moment.
 - Keep API endpoints fast (< 200ms response time on local machine).
 
 ### 6.3 Security `[Beta]`
-- Passwords must be hashed using bcrypt before being saved to SQLite. Plaintext passwords must never be stored.
+- Passwords must be hashed using bcrypt before being saved to PostgreSQL. Plaintext passwords must never be stored.
 - Protected API routes require a valid `Authorization: Bearer <token>` header.
 - Endpoint-level role checks prevent regular users from accessing manager or admin functions.
 
@@ -207,7 +207,7 @@ For the mid-term demo, the following items must be working:
 | AC-02 | Interactive API documentation is accessible at `/docs` | Open `http://localhost:8000/docs` in browser |
 | AC-03 | Admin can create, read, update, and delete events via API | Test via Swagger UI or frontend form |
 | AC-04 | Ticket tiers can be added to and deleted from an event | Test via Swagger UI or frontend |
-| AC-05 | Booking a ticket successfully reduces `available_quantity` in the database | Inspect SQLite database or API response |
+| AC-05 | Booking a ticket successfully reduces `available_quantity` in the database | Inspect PostgreSQL database or API response |
 | AC-06 | Booking fails with HTTP 400 if requested seats exceed remaining seats | Submit booking with excessive quantity in `/docs` |
 | AC-07 | Booking list is viewable at `GET /api/bookings` | Fetch from `/api/bookings` |
 | AC-08 | React frontend (port 5173) connects to backend and completes event browsing and booking | Test in browser from `http://localhost:5173` |
@@ -217,7 +217,7 @@ For the final submission, in addition to the MVP items, the following must be co
 
 | ID | Criterion | How to Verify |
 |---|---|---|
-| AC-09 | New users can sign up; passwords are saved as bcrypt hashes in SQLite | Check database records |
+| AC-09 | New users can sign up; passwords are saved as bcrypt hashes in PostgreSQL | Check database records |
 | AC-10 | Registered users can log in and receive a valid JWT token | Test login via Swagger or UI |
 | AC-11 | Protected endpoints reject requests without a valid token with HTTP 401 | Send request without Authorization header |
 | AC-12 | Admin can assign a registered user as manager for an event | Check `manager_id` in database / UI |

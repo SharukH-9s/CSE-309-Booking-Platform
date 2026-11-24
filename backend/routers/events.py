@@ -1,51 +1,53 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
+
 from database import get_db
-from models import Event
-from schemas import EventCreate, EventUpdate, EventResponse
+from schemas import EventCreate, EventResponse, EventUpdate
+from services import event_service
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 
 @router.get("", response_model=list[EventResponse])
-def list_events(db: Session = Depends(get_db)):
-    return db.query(Event).all()
+def list_events(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return event_service.list_events(db, request.state.current_user)
 
 
 @router.get("/{event_id}", response_model=EventResponse)
-def get_event(event_id: int, db: Session = Depends(get_db)):
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return event
+def get_event(
+    event_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return event_service.get_event(db, event_id, request.state.current_user)
 
 
-@router.post("", response_model=EventResponse, status_code=201)
-def create_event(data: EventCreate, db: Session = Depends(get_db)):
-    event = Event(**data.model_dump())
-    db.add(event)
-    db.commit()
-    db.refresh(event)
-    return event
+@router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
+def create_event(
+    data: EventCreate,
+    db: Session = Depends(get_db),
+):
+    return event_service.create_event(db, data)
 
 
 @router.put("/{event_id}", response_model=EventResponse)
-def update_event(event_id: int, data: EventUpdate, db: Session = Depends(get_db)):
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(event, field, value)
-    db.commit()
-    db.refresh(event)
-    return event
+def update_event(
+    event_id: int,
+    data: EventUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return event_service.update_event(db, event_id, data, request.state.current_user)
 
 
-@router.delete("/{event_id}", status_code=204)
-def delete_event(event_id: int, db: Session = Depends(get_db)):
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    db.delete(event)
-    db.commit()
-
+@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event(
+    event_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    event_service.delete_event(db, event_id, request.state.current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
