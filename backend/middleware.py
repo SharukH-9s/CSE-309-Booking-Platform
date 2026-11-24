@@ -11,6 +11,9 @@ from repositories.user_repository import get_user_by_id
 from security import decode_access_token
 
 EVENT_ITEM_PATH = re.compile(r"^/api/events/\d+$")
+EVENT_BOOKINGS_PATH = re.compile(r"^/api/events/\d+/bookings$")
+BOOKING_ITEM_PATH = re.compile(r"^/api/bookings/\d+$")
+BOOKING_EVENT_PATH = re.compile(r"^/api/bookings/event/\d+$")
 ADMIN_USER_ITEM_PATH = re.compile(r"^/api/admin/users/\d+$")
 
 
@@ -55,6 +58,14 @@ class RBACMiddleware(BaseHTTPMiddleware):
             return {"admin"}, True
         if method in {"PUT", "DELETE"} and EVENT_ITEM_PATH.fullmatch(path):
             return {"admin", "manager"}, True
+        if method == "POST" and path == "/api/bookings":
+            return {"admin", "manager", "user"}, True
+        if method == "GET" and path == "/api/bookings/my":
+            return {"admin", "manager", "user"}, True
+        if method == "GET" and (BOOKING_EVENT_PATH.fullmatch(path) or EVENT_BOOKINGS_PATH.fullmatch(path)):
+            return {"admin", "manager"}, True
+        if method == "DELETE" and BOOKING_ITEM_PATH.fullmatch(path):
+            return {"admin", "manager", "user"}, True
         if method == "POST" and path == "/api/managers":
             return {"admin"}, True
         if method == "GET" and path == "/api/admin/users":

@@ -93,3 +93,21 @@ class EventResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BookingCreate(BaseModel):
+    event_id: int
+
+
+class BookingResponse(BaseModel):
+    id: int
+    event_id: int
+    user_id: int
+    created_at: datetime
+    user_name: str | None = None
+    user_email: str | None = None
+    event_title: str | None = None
+    event_date: str | None = None
+    event_location: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)

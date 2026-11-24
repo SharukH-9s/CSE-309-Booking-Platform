@@ -1,14 +1,18 @@
 import { FormEvent, useEffect, useState } from "react"
 import {
+  bookEvent,
+  cancelBooking,
   changePassword,
   createEvent,
   createManager,
   deleteAdminUser,
   deleteEvent,
   getEvent,
+  getEventBookings,
   getAdminUsers,
   getEvents,
   getMe,
+  getMyBookings,
   login,
   logout as logoutApi,
   register,
@@ -16,7 +20,7 @@ import {
   updateMe,
   updateEvent,
 } from "./api"
-import { Event, EventForm, User } from "./types"
+import { Booking, Event, EventForm, User } from "./types"
 
 type View = "list" | "detail" | "create" | "edit" | "login" | "register" | "manager" | "profile" | "admin"
 
@@ -30,6 +34,9 @@ export default function App() {
   const [selected, setSelected] = useState<Event | null>(null)
   const [eventForm, setEventForm] = useState<EventForm>(emptyEventForm)
   const [user, setUser] = useState<User | null>(null)
+  const [myBookings, setMyBookings] = useState<Booking[]>([])
+  const [eventBookings, setEventBookings] = useState<Booking[]>([])
+  const [bookingLoading, setBookingLoading] = useState(false)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [loading, setLoading] = useState(false)
@@ -37,13 +44,25 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem("access_token")
     if (token) {
-      getMe().then(setUser).catch(() => {
+      getMe().then((u) => {
+        setUser(u)
+        void loadMyBookings()
+      }).catch(() => {
         setTokens(null)
         setUser(null)
+        setMyBookings([])
       })
     }
     void loadEvents()
   }, [])
+
+  async function loadMyBookings() {
+    try {
+      setMyBookings(await getMyBookings())
+    } catch {
+      setMyBookings([])
+    }
+  }
 
   async function loadEvents() {
     setLoading(true)
@@ -59,11 +78,57 @@ export default function App() {
 
   async function openDetail(id: number) {
     setError("")
+    setNotice("")
     try {
-      setSelected(await getEvent(id))
+      const eventData = await getEvent(id)
+      setSelected(eventData)
       setView("detail")
+      if (user) {
+        void loadMyBookings()
+        if (user.role === "admin" || (user.role === "manager" && eventData.manager_id === user.id)) {
+          getEventBookings(id).then(setEventBookings).catch(() => setEventBookings([]))
+        } else {
+          setEventBookings([])
+        }
+      } else {
+        setEventBookings([])
+      }
     } catch (err) {
       setError(errorMessage(err, "Could not load event."))
+    }
+  }
+
+  async function handleBookEvent(eventId: number) {
+    setError("")
+    setNotice("")
+    setBookingLoading(true)
+    try {
+      await bookEvent(eventId)
+      setNotice("Event booked successfully!")
+      await loadMyBookings()
+      if (selected && (user?.role === "admin" || (user?.role === "manager" && selected.manager_id === user?.id))) {
+        setEventBookings(await getEventBookings(selected.id))
+      }
+    } catch (err) {
+      setError(errorMessage(err, "Could not book event."))
+    } finally {
+      setBookingLoading(false)
+    }
+  }
+
+  async function handleCancelBooking(bookingId: number) {
+    if (!confirm("Are you sure you want to cancel this booking?")) return
+    setError("")
+    setNotice("")
+    try {
+      await cancelBooking(bookingId)
+      setNotice("Booking cancelled successfully.")
+      await loadMyBookings()
+      if (selected && (user?.role === "admin" || (user?.role === "manager" && selected.manager_id === user?.id))) {
+        setEventBookings(await getEventBookings(selected.id))
+      }
+    } catch (err) {
+      setError(errorMessage(err, "Could not cancel booking."))
     }
   }
 
@@ -123,6 +188,7 @@ export default function App() {
       setUser(result.user)
       setError("")
       setView("list")
+      void loadMyBookings()
       await loadEvents()
     } catch (err) {
       setError(errorMessage(err, "Could not log in."))
@@ -145,6 +211,7 @@ export default function App() {
       setUser(result.user)
       setError("")
       setView("list")
+      void loadMyBookings()
       await loadEvents()
     } catch (err) {
       setError(errorMessage(err, "Could not create account."))
@@ -219,6 +286,8 @@ export default function App() {
     }
     setTokens(null)
     setUser(null)
+    setMyBookings([])
+    setEventBookings([])
     setView("list")
     void loadEvents()
   }
@@ -319,6 +388,35 @@ export default function App() {
           <div className="field"><label>New password</label><input name="new_password" type="password" minLength={8} required /></div>
           <button type="submit">Change password</button>
         </form>
+        <h2>My Bookings ({myBookings.length})</h2>
+        {myBookings.length === 0 ? (
+          <p>You have not booked any events yet.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Location</th>
+                <th>Date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {myBookings.map((b) => (
+                <tr key={b.id}>
+                  <td>{b.event_title}</td>
+                  <td>{b.event_location}</td>
+                  <td>{b.event_date}</td>
+                  <td>
+                    <button className="danger" onClick={() => void handleCancelBooking(b.id)}>
+                      Cancel Booking
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     )
   }
@@ -396,20 +494,88 @@ export default function App() {
   }
 
   if (view === "detail" && selected) {
+    const isManagerOfThisEvent = user?.role === "manager" && selected.manager_id === user?.id
+    const isAdmin = user?.role === "admin"
+    const canManageEvent = isAdmin || isManagerOfThisEvent
+    const userBooking = myBookings.find((b) => b.event_id === selected.id)
+
     return (
       <div className="container">
-        <button onClick={() => setView("list")}>← Back</button>
+        <button onClick={() => { setError(""); setNotice(""); setView("list") }}>← Back</button>
         <h2>{selected.title}</h2>
         <p><strong>Location:</strong> {selected.location}</p>
         <p><strong>Date:</strong> {selected.event_date}</p>
         {selected.description && <p><strong>Description:</strong> {selected.description}</p>}
         {error && <p className="error">{error}</p>}
+        {notice && <p style={{ color: "green", fontWeight: "bold" }}>{notice}</p>}
+
+        {user && user.role === "user" && (
+          <div style={{ margin: "1.2rem 0" }}>
+            {userBooking ? (
+              <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                <span style={{ color: "green", fontWeight: "600" }}>✓ You are booked for this event</span>
+                <button
+                  className="danger"
+                  onClick={() => void handleCancelBooking(userBooking.id)}
+                >
+                  Cancel My Booking
+                </button>
+              </div>
+            ) : (
+              <button disabled={bookingLoading} onClick={() => void handleBookEvent(selected.id)}>
+                {bookingLoading ? "Booking..." : "Book This Event"}
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="actions">
-          <button onClick={openEdit}>Edit</button>
-          <button className="danger" onClick={() => void handleDelete()}>Delete</button>
+          {canManageEvent && (
+            <>
+              <button onClick={openEdit}>Edit</button>
+              <button className="danger" onClick={() => void handleDelete()}>Delete</button>
+            </>
+          )}
         </div>
-        {selected.manager_id === null && (
+        {isAdmin && selected.manager_id === null && (
           <button onClick={() => { setError(""); setView("manager") }}>Assign manager</button>
+        )}
+
+        {canManageEvent && (
+          <div style={{ marginTop: "2rem" }}>
+            <h3>Attendee Bookings ({eventBookings.length})</h3>
+            {eventBookings.length === 0 ? (
+              <p>No bookings for this event yet.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Attendee</th>
+                    <th>Email</th>
+                    <th>Booked At</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventBookings.map((b) => (
+                    <tr key={b.id}>
+                      <td>{b.user_name}</td>
+                      <td>{b.user_email}</td>
+                      <td>{new Date(b.created_at).toLocaleString()}</td>
+                      <td>
+                        <button
+                          className="danger"
+                          onClick={() => void handleCancelBooking(b.id)}
+                        >
+                          Cancel Booking
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         )}
       </div>
     )

@@ -8,6 +8,7 @@ from database import Base, SessionLocal, engine, migrate_event_manager_column
 from middleware import RBACMiddleware
 from routers.auth import router as auth_router
 from routers.admin import router as admin_router
+from routers.bookings import router as bookings_router
 from routers.events import router as events_router
 from routers.managers import router as managers_router
 from services.auth_service import seed_admin
@@ -41,6 +42,7 @@ app.add_middleware(RBACMiddleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(events_router)
+app.include_router(bookings_router)
 app.include_router(managers_router)
 
 

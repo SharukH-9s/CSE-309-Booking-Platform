@@ -1,4 +1,5 @@
 import {
+  Booking,
   Event,
   EventForm,
   ManagerForm,
@@ -131,4 +132,20 @@ export function getAdminUsers(): Promise<User[]> {
 
 export function deleteAdminUser(userId: number): Promise<void> {
   return request(`/admin/users/${userId}`, { method: "DELETE" })
+}
+
+export function bookEvent(eventId: number): Promise<Booking> {
+  return request("/bookings", { method: "POST", body: JSON.stringify({ event_id: eventId }) })
+}
+
+export function getMyBookings(): Promise<Booking[]> {
+  return request("/bookings/my")
+}
+
+export function getEventBookings(eventId: number): Promise<Booking[]> {
+  return request(`/events/${eventId}/bookings`)
+}
+
+export function cancelBooking(bookingId: number): Promise<void> {
+  return request(`/bookings/${bookingId}`, { method: "DELETE" })
 }
