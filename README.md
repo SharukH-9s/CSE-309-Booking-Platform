@@ -1,78 +1,101 @@
-# FastAPI + React Template
+# Event Booking Platform
 
-FastAPI backend + Vite/React/TypeScript frontend, deployed to Vercel as one project.
+A web application for discovering campus events, booking attendance, and managing event organizers and users. The frontend is built with React and TypeScript; the API uses FastAPI and PostgreSQL. The project is configured for deployment to Vercel.
 
-```
-backend/    FastAPI app (routes under /api)
-frontend/   Vite + React + TypeScript
-vercel.json Vercel setup: /api/* goes to backend, everything else to frontend
-```
+## Live application
+
+- **Frontend:** [cse-309-booking-platform.vercel.app](https://cse-309-booking-platform.vercel.app/)
+- **API:** [cse-309-booking-platform.vercel.app/api](https://cse-309-booking-platform.vercel.app/api)
+- **API documentation:** [Swagger UI](https://cse-309-booking-platform.vercel.app/api/docs)
+- **GitHub:** [SharukH-9s/CSE-309-Booking-Platform](https://github.com/SharukH-9s/CSE-309-Booking-Platform)
+- **Final project report:** [FINAL_REPORT.md](./FINAL_REPORT.md)
+
+## Features
+
+- Public event browsing and event details.
+- Account registration, login, logout, profile editing, and password changes.
+- Booking and cancellation for signed-in users.
+- Three roles: `user`, `manager`, and `admin`. Managers can manage assigned events and their attendee bookings; admins can manage all events and bookings.
+- Admin dashboard with platform counts, event and account lists, active/banned account filters, ban/unban controls, eligible account deletion, and platform-wide booking cancellation.
+- Banned users see an account notice and cannot book events.
+
+Groups and group permissions are not implemented. Access and refresh tokens are returned in JSON and stored in browser `localStorage`; the application does not use `httpOnly` cookies.
+
+## Technology
+
+- **Frontend:** React, TypeScript, Vite
+- **Backend:** Python, FastAPI, SQLAlchemy
+- **Database:** PostgreSQL with Psycopg
+- **Authentication:** JWT access tokens, rotating refresh tokens, bcrypt password hashes
+- **Deployment:** Vercel
 
 ## Requirements
 
-- [Python](https://www.python.org/downloads/) 3.10+
-- [Node.js](https://nodejs.org/) 22+
-
-> On macOS/Linux, use `python3` instead of `python`.
+- Python 3.10 or newer
+- Node.js 22 or newer with npm
+- PostgreSQL database
 
 ## Run locally
 
-**Backend** (terminal 1):
+### 1. Configure the backend
 
-```bash
-cd backend
+From the repository root, copy the example environment file:
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+Edit `backend/.env` and set the PostgreSQL URL, a strong development JWT secret, and the initial admin account values. The example values are placeholders and should be replaced.
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection URL, for example `postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE` |
+| `SECRET_KEY` | Secret used to sign JWTs |
+| `ALGORITHM` | JWT algorithm; defaults to `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime; defaults to 60 minutes |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime; defaults to 7 days |
+| `ADMIN_NAME` | Name for the initial admin account |
+| `ADMIN_EMAIL` | Email for the initial admin account |
+| `ADMIN_PHONE` | Phone for the initial admin account |
+| `ADMIN_PASSWORD` | Password for the initial admin account |
+
+Start the API in the first terminal:
+
+```powershell
+Set-Location backend
 python -m venv .venv
-.venv\Scripts\Activate.ps1      # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 fastapi dev main.py
 ```
 
-**Frontend** (terminal 2):
+On startup, the API creates missing tables and seeds the configured admin if that email is not already registered.
 
-```bash
-cd frontend
+### 2. Start the frontend
+
+In a second terminal, from the repository root:
+
+```powershell
+Set-Location frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and click **Say hello**. Vite forwards `/api` requests to the backend on port 8000.
+Open [http://localhost:5173](http://localhost:5173). Vite forwards `/api` requests to the backend at `http://localhost:8000`.
 
-To run it the way Vercel does instead, from the project root:
+- API documentation: [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
+- Health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
-```bash
-npm install -g vercel
-vercel dev -L
+## Build check
+
+Run the frontend TypeScript and production build check from `frontend/`:
+
+```powershell
+npm run build
 ```
 
-> Add new Python packages to `backend/requirements.txt`.
+The repository does not currently include an automated backend test suite or a separate frontend test runner.
 
-## Backend environment
+## Deployment
 
-Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` to your PostgreSQL connection URL, along with the JWT secret and initial admin's name, email, phone, and password. `REFRESH_TOKEN_EXPIRE_DAYS` controls refresh-token lifetime. Install the backend requirements, including the Psycopg 3 PostgreSQL driver. On startup, the backend creates the required tables and creates the admin only if the email is not already registered. Public registration always creates a regular `user`; admins create and assign manager accounts from an event. The admin dashboard lists accounts and events and allows admins to delete accounts.
-
-Set the same variables in the deployment environment. Use a managed PostgreSQL database and keep its connection URL in the host's secret environment settings.
-
-## Class exercise
-
-Send an ID, name and email from React to FastAPI and show the reply.
-
-1. In `backend/main.py`, uncomment the `EXERCISE (part 1)` block. Try `POST /api/user` at http://localhost:8000/docs.
-2. In `frontend/src/App.tsx`, uncomment `<UserForm />` and the `UserForm` function (`EXERCISE (part 2)`).
-3. Fill in the form at http://localhost:5173 and click **Send**.
-
-Try an invalid email (send it from `/docs`, since the browser blocks it in the form): FastAPI returns `422` without any extra code.
-
-## Deploy to Vercel
-
-1. Push the repo to GitHub.
-2. Go to https://vercel.com/new, import the repo and click **Deploy**. Keep **Root Directory** as `./`.
-
-Every push to `main` redeploys automatically. Or deploy from your machine with `vercel --prod`.
-
-## Troubleshooting
-
-- **"Running scripts is disabled" in PowerShell:** run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
-- **`fastapi` not found:** activate the virtual environment first.
-- **`Request failed: 500` in the app:** the backend isn't running.
-- **App at localhost:8000 shows an old version:** delete `frontend/dist`.
-- **Vercel build fails:** check **Build Logs** in the Vercel dashboard, and make sure `npm run build` works in `frontend/`.
+The Vercel configuration at the repository root routes `/api/*` to the FastAPI service and other paths to the Vite frontend. Import the repository into Vercel with the project root set to `./`, then configure the environment variables listed above. Use a managed PostgreSQL database and store its URL and secrets in Vercel's environment settings. Do not commit real credentials or `.env` files.
