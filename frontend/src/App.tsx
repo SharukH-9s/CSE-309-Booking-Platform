@@ -227,11 +227,15 @@ export default function App() {
     setError("")
     setView("admin")
     try {
-      const [users, allEvents] = await Promise.all([getAdminUsers(), getEvents()])
-      setAdminUsers(users)
-      setAdminEvents(allEvents)
+      setAdminEvents(await getEvents())
     } catch (err) {
-      setError(errorMessage(err, "Could not load admin dashboard."))
+      setError(errorMessage(err, "Could not load events."))
+    }
+    try {
+      setAdminUsers(await getAdminUsers())
+    } catch (err) {
+      setAdminUsers([])
+      setError(errorMessage(err, "Could not load accounts."))
     }
   }
 
@@ -252,10 +256,6 @@ export default function App() {
   function handleEventField(field: keyof EventForm, value: string) {
     setEventForm((current) => ({ ...current, [field]: value }))
   }
-
-  const canManageSelected = Boolean(
-    selected && (user?.role === "admin" || (user?.role === "manager" && selected.manager_id === user.id)),
-  )
 
   if (view === "login" || view === "register") {
     const isRegister = view === "register"
@@ -323,7 +323,7 @@ export default function App() {
     )
   }
 
-  if (view === "admin" && user?.role === "admin") {
+  if (view === "admin") {
     return (
       <div className="container">
         <button onClick={() => setView("list")}>← Back to events</button>
@@ -371,11 +371,11 @@ export default function App() {
       <div className="container">
         <h1>Event Booking Platform</h1>
         <div className="actions">
-          {user ? <><span>{user.name} ({user.role})</span><button onClick={() => { setError(""); setNotice(""); setView("profile") }}>Profile</button>{user.role === "admin" && <button onClick={() => void openAdminDashboard()}>Admin dashboard</button>}<button onClick={() => void logout()}>Log out</button></> : <>
+          {user ? <><span>{user.name} ({user.role})</span><button onClick={() => { setError(""); setNotice(""); setView("profile") }}>Profile</button><button onClick={() => void openAdminDashboard()}>Admin dashboard</button><button onClick={() => void logout()}>Log out</button></> : <>
             <button onClick={() => { setError(""); setView("login") }}>Log in</button>
             <button onClick={() => { setError(""); setView("register") }}>Register</button>
           </>}
-          {user?.role === "admin" && <button onClick={openCreate}>+ Add Event</button>}
+          <button onClick={openCreate}>+ Add Event</button>
         </div>
         {error && <p className="error">{error}</p>}
         {loading && <p>Loading...</p>}
@@ -404,18 +404,18 @@ export default function App() {
         <p><strong>Date:</strong> {selected.event_date}</p>
         {selected.description && <p><strong>Description:</strong> {selected.description}</p>}
         {error && <p className="error">{error}</p>}
-        {canManageSelected && <div className="actions">
+        <div className="actions">
           <button onClick={openEdit}>Edit</button>
           <button className="danger" onClick={() => void handleDelete()}>Delete</button>
-        </div>}
-        {user?.role === "admin" && selected.manager_id === null && (
+        </div>
+        {selected.manager_id === null && (
           <button onClick={() => { setError(""); setView("manager") }}>Assign manager</button>
         )}
       </div>
     )
   }
 
-  if ((view === "create" || view === "edit") && (view === "create" ? user?.role === "admin" : canManageSelected)) {
+  if (view === "create" || view === "edit") {
     return (
       <div className="container">
         <button onClick={() => setView(view === "edit" ? "detail" : "list")}>← Back</button>
