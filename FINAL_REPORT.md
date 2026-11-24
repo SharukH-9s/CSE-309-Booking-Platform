@@ -940,19 +940,19 @@ Screenshot evidence captions are retained below; the visual files are omitted fr
    Copy-Item backend/.env.example backend/.env
    ```
 
-3. Edit `backend/.env` with values for the local database and admin account. These are examples only; replace the database username, password, host, database name, and local admin password with values for the local setup.
+3. Edit `backend/.env` with values for the local database and admin account. Keep database credentials, the JWT secret, and the admin password in this local environment file; do not include their values in the report.
 
-   | Variable | Example value |
+   | Variable | Configuration |
    |---|---|
-   | `DATABASE_URL` | `postgresql+psycopg://postgres:local-password@localhost:5432/booking_platform` |
-   | `SECRET_KEY` | `local-development-only-change-this-to-a-long-random-value` |
+   | `DATABASE_URL` | Set privately in `backend/.env`. |
+   | `SECRET_KEY` | Generate and set privately in `backend/.env`. |
    | `ALGORITHM` | `HS256` |
    | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` |
    | `REFRESH_TOKEN_EXPIRE_DAYS` | `7` |
    | `ADMIN_NAME` | `Project Admin` |
-   | `ADMIN_EMAIL` | `admin@example.com` |
-   | `ADMIN_PHONE` | `+8801000000000` |
-   | `ADMIN_PASSWORD` | `LocalAdmin-ChangeMe-123!` |
+   | `ADMIN_EMAIL` | Configure a local admin account in `backend/.env`. |
+   | `ADMIN_PHONE` | Configure a local admin account in `backend/.env`. |
+   | `ADMIN_PASSWORD` | Set privately in `backend/.env`; value omitted. |
 
 4. In a terminal at the repository root, create and activate the Python environment, install the backend packages, and start FastAPI:
 
