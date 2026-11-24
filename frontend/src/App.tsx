@@ -355,7 +355,7 @@ export default function App() {
                 <td>{account.role}</td><td>{assignedEvent?.title ?? (account.role === "manager" ? "Unassigned" : "—")}</td>
                 <td><button
                   className="danger"
-                  disabled={account.id === user.id}
+                  disabled={account.id === user?.id}
                   onClick={() => void handleAdminDeleteUser(account)}
                 >Delete</button></td>
               </tr>
