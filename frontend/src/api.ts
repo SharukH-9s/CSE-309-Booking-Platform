@@ -134,6 +134,14 @@ export function deleteAdminUser(userId: number): Promise<void> {
   return request(`/admin/users/${userId}`, { method: "DELETE" })
 }
 
+export function banUser(userId: number): Promise<User> {
+  return request(`/admin/users/${userId}/ban`, { method: "POST" })
+}
+
+export function unbanUser(userId: number): Promise<void> {
+  return request(`/admin/users/${userId}/ban`, { method: "DELETE" })
+}
+
 export function bookEvent(eventId: number): Promise<Booking> {
   return request("/bookings", { method: "POST", body: JSON.stringify({ event_id: eventId }) })
 }

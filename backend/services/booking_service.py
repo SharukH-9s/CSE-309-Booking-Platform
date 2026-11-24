@@ -2,11 +2,17 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from models import Booking, User
-from repositories import booking_repository, event_repository
+from repositories import ban_repository, booking_repository, event_repository
 from schemas import BookingCreate
 
 
 def create_booking(db: Session, user: User, data: BookingCreate) -> dict:
+    if ban_repository.is_user_banned(db, user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is banned from booking events",
+        )
+
     event = event_repository.get_event(db, data.event_id)
     if event is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")

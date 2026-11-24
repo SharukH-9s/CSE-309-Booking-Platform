@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react"
 import {
+  banUser,
   bookEvent,
   cancelBooking,
   changePassword,
@@ -17,6 +18,7 @@ import {
   logout as logoutApi,
   register,
   setTokens,
+  unbanUser,
   updateMe,
   updateEvent,
 } from "./api"
@@ -322,6 +324,26 @@ export default function App() {
     }
   }
 
+  async function handleAdminBanToggle(account: User) {
+    if (account.role !== "user" || account.id === user?.id) return
+    const action = account.is_banned ? "unban" : "ban"
+    if (!confirm(`${account.is_banned ? "Unban" : "Ban"} ${account.name}'s account?`)) return
+    try {
+      if (account.is_banned) await unbanUser(account.id)
+      else await banUser(account.id)
+      setAdminUsers(await getAdminUsers())
+      setError("")
+    } catch (err) {
+      setError(errorMessage(err, `Could not ${action} account.`))
+    }
+  }
+
+  const bannedBanner = user?.is_banned ? (
+    <div className="banned-banner">
+      BANNED: Your account has been banned by an administrator. You cannot book events.
+    </div>
+  ) : null
+
   function handleEventField(field: keyof EventForm, value: string) {
     setEventForm((current) => ({ ...current, [field]: value }))
   }
@@ -373,6 +395,7 @@ export default function App() {
       <div className="container">
         <button onClick={() => { setError(""); setNotice(""); setView("list") }}>← Back to events</button>
         <h1>Profile</h1>
+        {bannedBanner}
         {error && <p className="error">{error}</p>}
         {notice && <p>{notice}</p>}
         <h2>Account details</h2>
@@ -443,7 +466,7 @@ export default function App() {
         <h2>Accounts ({adminUsers.length})</h2>
         {adminUsers.length === 0 ? <p>No accounts found.</p> : (
           <table>
-            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Assigned event</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Assigned event</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>{adminUsers.map((account) => {
               const assignedEvent = account.role === "manager"
                 ? adminEvents.find((event) => event.manager_id === account.id)
@@ -451,11 +474,25 @@ export default function App() {
               return <tr key={account.id}>
                 <td>{account.name}</td><td>{account.email}</td><td>{account.phone ?? "—"}</td>
                 <td>{account.role}</td><td>{assignedEvent?.title ?? (account.role === "manager" ? "Unassigned" : "—")}</td>
-                <td><button
-                  className="danger"
-                  disabled={account.id === user?.id}
-                  onClick={() => void handleAdminDeleteUser(account)}
-                >Delete</button></td>
+                <td>
+                  <span className={account.is_banned ? "badge-banned" : "badge-active"}>
+                    {account.is_banned ? "Banned" : "Active"}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    className={account.is_banned ? "" : "danger"}
+                    disabled={account.role !== "user" || account.id === user?.id}
+                    onClick={() => void handleAdminBanToggle(account)}
+                  >
+                    {account.is_banned ? "Unban" : "Ban"}
+                  </button>
+                  <button
+                    className="danger"
+                    disabled={account.id === user?.id}
+                    onClick={() => void handleAdminDeleteUser(account)}
+                  >Delete</button>
+                </td>
               </tr>
             })}</tbody>
           </table>
@@ -475,6 +512,7 @@ export default function App() {
           </>}
           <button onClick={openCreate}>+ Add Event</button>
         </div>
+        {bannedBanner}
         {error && <p className="error">{error}</p>}
         {loading && <p>Loading...</p>}
         {!loading && events.length === 0 && <p>No events yet.</p>}
@@ -502,6 +540,7 @@ export default function App() {
     return (
       <div className="container">
         <button onClick={() => { setError(""); setNotice(""); setView("list") }}>← Back</button>
+        {bannedBanner}
         <h2>{selected.title}</h2>
         <p><strong>Location:</strong> {selected.location}</p>
         <p><strong>Date:</strong> {selected.event_date}</p>
@@ -520,6 +559,11 @@ export default function App() {
                 >
                   Cancel My Booking
                 </button>
+              </div>
+            ) : user.is_banned ? (
+              <div>
+                <button disabled>Book This Event</button>
+                <p className="error">Banned accounts cannot book events.</p>
               </div>
             ) : (
               <button disabled={bookingLoading} onClick={() => void handleBookEvent(selected.id)}>

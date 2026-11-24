@@ -52,6 +52,7 @@ class UserResponse(BaseModel):
     email: str
     phone: str | None
     role: UserRole
+    is_banned: bool = False
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

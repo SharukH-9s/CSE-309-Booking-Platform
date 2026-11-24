@@ -6,6 +6,7 @@ export interface User {
   email: string
   phone: string | null
   role: Role
+  is_banned: boolean
   created_at: string
 }
 

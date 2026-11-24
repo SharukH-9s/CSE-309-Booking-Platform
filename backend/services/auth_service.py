@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from models import RefreshToken, User
-from repositories import refresh_token_repository
+from repositories import ban_repository, refresh_token_repository
 from repositories.user_repository import add_user, get_user_by_email, get_user_by_id
 from schemas import PasswordChange, TokenResponse, UserProfileUpdate, UserRegister, UserResponse
 from security import (
@@ -42,6 +42,11 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
     return user
 
 
+def _attach_ban_status(db: Session, user: User) -> User:
+    user.is_banned = ban_repository.is_user_banned(db, user.id)
+    return user
+
+
 def create_token_pair(db: Session, user: User) -> TokenResponse:
     refresh_token = create_refresh_token()
     refresh_token_repository.add_refresh_token(
@@ -53,6 +58,7 @@ def create_token_pair(db: Session, user: User) -> TokenResponse:
         ),
     )
     db.commit()
+    _attach_ban_status(db, user)
     return TokenResponse(
         access_token=create_access_token(user.id),
         refresh_token=refresh_token,
@@ -95,6 +101,7 @@ def rotate_refresh_token(db: Session, raw_token: str) -> TokenResponse:
         ),
     )
     db.commit()
+    _attach_ban_status(db, user)
     return TokenResponse(
         access_token=create_access_token(user.id),
         refresh_token=next_token,
@@ -132,7 +139,7 @@ def update_user_profile(db: Session, user_id: int, data: UserProfileUpdate) -> U
 
     db.commit()
     db.refresh(user)
-    return user
+    return _attach_ban_status(db, user)
 
 
 def change_user_password(db: Session, user_id: int, data: PasswordChange) -> None:
