@@ -16,6 +16,10 @@ def list_users(db: Session) -> list[User]:
     return db.query(User).order_by(User.role, User.name, User.id).all()
 
 
+def count_users(db: Session) -> int:
+    return db.query(func.count(User.id)).scalar() or 0
+
+
 def count_admins(db: Session) -> int:
     return db.query(func.count(User.id)).filter(User.role == "admin").scalar() or 0
 

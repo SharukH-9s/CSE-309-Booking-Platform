@@ -8,6 +8,8 @@ import {
   createManager,
   deleteAdminUser,
   deleteEvent,
+  getAdminBookings,
+  getAdminStats,
   getEvent,
   getEventBookings,
   getAdminUsers,
@@ -22,7 +24,7 @@ import {
   updateMe,
   updateEvent,
 } from "./api"
-import { Booking, Event, EventForm, User } from "./types"
+import { AdminStats, Booking, Event, EventForm, User } from "./types"
 
 type View = "list" | "detail" | "create" | "edit" | "login" | "register" | "manager" | "profile" | "admin"
 
@@ -33,6 +35,9 @@ export default function App() {
   const [events, setEvents] = useState<Event[]>([])
   const [adminEvents, setAdminEvents] = useState<Event[]>([])
   const [adminUsers, setAdminUsers] = useState<User[]>([])
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
+  const [adminBookings, setAdminBookings] = useState<Booking[]>([])
+  const [userFilter, setUserFilter] = useState<"all" | "active" | "banned">("all")
   const [selected, setSelected] = useState<Event | null>(null)
   const [eventForm, setEventForm] = useState<EventForm>(emptyEventForm)
   const [user, setUser] = useState<User | null>(null)
@@ -296,18 +301,23 @@ export default function App() {
 
   async function openAdminDashboard() {
     setError("")
+    setUserFilter("all")
     setView("admin")
-    try {
-      setAdminEvents(await getEvents())
-    } catch (err) {
-      setError(errorMessage(err, "Could not load events."))
-    }
-    try {
-      setAdminUsers(await getAdminUsers())
-    } catch (err) {
-      setAdminUsers([])
-      setError(errorMessage(err, "Could not load accounts."))
-    }
+    await Promise.all([
+      getEvents().then(setAdminEvents).catch((err) => {
+        setError(errorMessage(err, "Could not load events."))
+      }),
+      getAdminUsers().then(setAdminUsers).catch((err) => {
+        setAdminUsers([])
+        setError(errorMessage(err, "Could not load accounts."))
+      }),
+      getAdminStats().then(setAdminStats).catch(() => {
+        setAdminStats(null)
+      }),
+      getAdminBookings().then(setAdminBookings).catch(() => {
+        setAdminBookings([])
+      }),
+    ])
   }
 
   async function handleAdminDeleteUser(userToDelete: User) {
@@ -315,9 +325,16 @@ export default function App() {
     if (!confirm(`Delete ${userToDelete.name}'s account?`)) return
     try {
       await deleteAdminUser(userToDelete.id)
-      const [users, allEvents] = await Promise.all([getAdminUsers(), getEvents()])
+      const [users, allEvents, stats, bookings] = await Promise.all([
+        getAdminUsers(),
+        getEvents(),
+        getAdminStats(),
+        getAdminBookings(),
+      ])
       setAdminUsers(users)
       setAdminEvents(allEvents)
+      setAdminStats(stats)
+      setAdminBookings(bookings)
       setError("")
     } catch (err) {
       setError(errorMessage(err, "Could not delete account."))
@@ -331,10 +348,26 @@ export default function App() {
     try {
       if (account.is_banned) await unbanUser(account.id)
       else await banUser(account.id)
-      setAdminUsers(await getAdminUsers())
+      const [users, stats] = await Promise.all([getAdminUsers(), getAdminStats()])
+      setAdminUsers(users)
+      setAdminStats(stats)
       setError("")
     } catch (err) {
       setError(errorMessage(err, `Could not ${action} account.`))
+    }
+  }
+
+  async function handleAdminCancelBooking(bookingId: number) {
+    if (!confirm("Are you sure you want to cancel this booking?")) return
+    try {
+      await cancelBooking(bookingId)
+      const [bookings, stats] = await Promise.all([getAdminBookings(), getAdminStats()])
+      setAdminBookings(bookings)
+      setAdminStats(stats)
+      void loadMyBookings()
+      setError("")
+    } catch (err) {
+      setError(errorMessage(err, "Could not cancel booking."))
     }
   }
 
@@ -445,11 +478,45 @@ export default function App() {
   }
 
   if (view === "admin") {
+    const activeCount = adminUsers.filter((account) => !account.is_banned).length
+    const bannedCount = adminUsers.length - activeCount
+    const visibleUsers = adminUsers.filter((account) => {
+      if (userFilter === "active") return !account.is_banned
+      if (userFilter === "banned") return account.is_banned
+      return true
+    })
+    const emptyUsersMessage =
+      userFilter === "banned"
+        ? "No banned users."
+        : userFilter === "active"
+          ? "No active users."
+          : "No accounts found."
+
     return (
       <div className="container">
         <button onClick={() => setView("list")}>← Back to events</button>
         <h1>Admin dashboard</h1>
         {error && <p className="error">{error}</p>}
+        {adminStats && (
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-value">{adminStats.total_bookings}</div>
+              <div className="stat-label">Total Bookings</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{adminStats.total_events}</div>
+              <div className="stat-label">Total Events</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{adminStats.total_users}</div>
+              <div className="stat-label">Total Users</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{adminStats.banned_users}</div>
+              <div className="stat-label">Banned Users</div>
+            </div>
+          </div>
+        )}
         <h2>Events ({adminEvents.length})</h2>
         {adminEvents.length === 0 ? <p>No events yet.</p> : (
           <table>
@@ -464,10 +531,30 @@ export default function App() {
           </table>
         )}
         <h2>Accounts ({adminUsers.length})</h2>
-        {adminUsers.length === 0 ? <p>No accounts found.</p> : (
+        <div className="filter-bar">
+          <button
+            className={userFilter === "all" ? "filter-active" : ""}
+            onClick={() => setUserFilter("all")}
+          >
+            All ({adminUsers.length})
+          </button>
+          <button
+            className={userFilter === "active" ? "filter-active" : ""}
+            onClick={() => setUserFilter("active")}
+          >
+            Active ({activeCount})
+          </button>
+          <button
+            className={userFilter === "banned" ? "filter-active" : ""}
+            onClick={() => setUserFilter("banned")}
+          >
+            Banned ({bannedCount})
+          </button>
+        </div>
+        {visibleUsers.length === 0 ? <p>{emptyUsersMessage}</p> : (
           <table>
             <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Assigned event</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>{adminUsers.map((account) => {
+            <tbody>{visibleUsers.map((account) => {
               const assignedEvent = account.role === "manager"
                 ? adminEvents.find((event) => event.manager_id === account.id)
                 : undefined
@@ -495,6 +582,40 @@ export default function App() {
                 </td>
               </tr>
             })}</tbody>
+          </table>
+        )}
+        <h2>Bookings ({adminBookings.length})</h2>
+        {adminBookings.length === 0 ? <p>No bookings yet.</p> : (
+          <table>
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Date</th>
+                <th>Attendee</th>
+                <th>Email</th>
+                <th>Booked At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {adminBookings.map((booking) => (
+                <tr key={booking.id}>
+                  <td>{booking.event_title ?? "—"}</td>
+                  <td>{booking.event_date ?? "—"}</td>
+                  <td>{booking.user_name ?? "—"}</td>
+                  <td>{booking.user_email ?? "—"}</td>
+                  <td>{new Date(booking.created_at).toLocaleString()}</td>
+                  <td>
+                    <button
+                      className="danger"
+                      onClick={() => void handleAdminCancelBooking(booking.id)}
+                    >
+                      Cancel Booking
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         )}
       </div>

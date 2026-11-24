@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from schemas import UserResponse
+from schemas import AdminStatsResponse, BookingResponse, UserResponse
 from services.admin_service import (
     ban_user_account,
     delete_user_account,
+    get_admin_stats,
+    get_all_bookings,
     get_all_users,
     unban_user_account,
 )
@@ -13,9 +15,19 @@ from services.admin_service import (
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+@router.get("/stats", response_model=AdminStatsResponse)
+def read_admin_stats(db: Session = Depends(get_db)):
+    return get_admin_stats(db)
+
+
+@router.get("/bookings", response_model=list[BookingResponse])
+def list_platform_bookings(db: Session = Depends(get_db)):
+    return get_all_bookings(db)
+
+
 @router.get("/users", response_model=list[UserResponse])
-def list_all_users(db: Session = Depends(get_db)):
-    return get_all_users(db)
+def list_all_users(banned: bool | None = None, db: Session = Depends(get_db)):
+    return get_all_users(db, banned=banned)
 
 
 @router.post("/users/{user_id}/ban", response_model=UserResponse)

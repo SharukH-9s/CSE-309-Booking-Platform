@@ -1,4 +1,5 @@
 import {
+  AdminStats,
   Booking,
   Event,
   EventForm,
@@ -126,8 +127,17 @@ export function createManager(data: ManagerForm): Promise<User> {
   return request("/managers", { method: "POST", body: JSON.stringify(data) })
 }
 
-export function getAdminUsers(): Promise<User[]> {
-  return request("/admin/users")
+export function getAdminUsers(banned?: boolean): Promise<User[]> {
+  const query = banned === undefined ? "" : `?banned=${banned}`
+  return request(`/admin/users${query}`)
+}
+
+export function getAdminStats(): Promise<AdminStats> {
+  return request("/admin/stats")
+}
+
+export function getAdminBookings(): Promise<Booking[]> {
+  return request("/admin/bookings")
 }
 
 export function deleteAdminUser(userId: number): Promise<void> {

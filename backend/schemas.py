@@ -112,3 +112,10 @@ class BookingResponse(BaseModel):
     event_location: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AdminStatsResponse(BaseModel):
+    total_bookings: int
+    total_events: int
+    total_users: int
+    banned_users: int
