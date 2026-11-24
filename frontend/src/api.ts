@@ -11,19 +11,64 @@ import {
 } from "./types"
 
 const BASE = "/api"
+const PUBLIC_AUTH_PATHS = new Set(["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"])
+let refreshInFlight: Promise<string | null> | null = null
 
-export function setToken(token: string | null) {
-  if (token) localStorage.setItem("access_token", token)
+export function setTokens(accessToken: string | null, refreshToken: string | null = null) {
+  if (accessToken) localStorage.setItem("access_token", accessToken)
   else localStorage.removeItem("access_token")
+  if (refreshToken) localStorage.setItem("refresh_token", refreshToken)
+  else localStorage.removeItem("refresh_token")
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const refreshToken = localStorage.getItem("refresh_token")
+      if (!refreshToken) return null
+
+      try {
+        const response = await fetch(`${BASE}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+        if (!response.ok) {
+          setTokens(null)
+          return null
+        }
+        const tokens: TokenResponse = await response.json()
+        setTokens(tokens.access_token, tokens.refresh_token)
+        return tokens.access_token
+      } catch {
+        setTokens(null)
+        return null
+      }
+    })().finally(() => {
+      refreshInFlight = null
+    })
+  }
+  return refreshInFlight
+}
+
+async function fetchWithToken(path: string, init: RequestInit, token: string | null): Promise<Response> {
+  const headers = new Headers(init.headers)
+  if (token) headers.set("Authorization", `Bearer ${token}`)
+  else headers.delete("Authorization")
+  if (init.body) headers.set("Content-Type", "application/json")
+  return fetch(`${BASE}${path}`, { ...init, headers })
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers)
-  const token = localStorage.getItem("access_token")
-  if (token) headers.set("Authorization", `Bearer ${token}`)
-  if (init.body) headers.set("Content-Type", "application/json")
+  const usesAccessToken = !PUBLIC_AUTH_PATHS.has(path)
+  let token = usesAccessToken ? localStorage.getItem("access_token") : null
+  let response = await fetchWithToken(path, init, token)
 
-  const response = await fetch(`${BASE}${path}`, { ...init, headers })
+  if (response.status === 401 && usesAccessToken) {
+    token = await refreshAccessToken()
+    if (token) response = await fetchWithToken(path, init, token)
+  }
+
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     throw new Error(body?.detail ?? `Request failed (${response.status})`)
@@ -38,6 +83,10 @@ export function register(data: UserRegistration): Promise<User> {
 
 export function login(data: UserCredentials): Promise<TokenResponse> {
   return request("/auth/login", { method: "POST", body: JSON.stringify(data) })
+}
+
+export function logout(refreshToken: string): Promise<void> {
+  return request("/auth/logout", { method: "POST", body: JSON.stringify({ refresh_token: refreshToken }) })
 }
 
 export function getMe(): Promise<User> {
@@ -74,4 +123,12 @@ export function deleteEvent(id: number): Promise<void> {
 
 export function createManager(data: ManagerForm): Promise<User> {
   return request("/managers", { method: "POST", body: JSON.stringify(data) })
+}
+
+export function getAdminUsers(): Promise<User[]> {
+  return request("/admin/users")
+}
+
+export function deleteAdminUser(userId: number): Promise<void> {
+  return request(`/admin/users/${userId}`, { method: "DELETE" })
 }

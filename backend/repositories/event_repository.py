@@ -23,3 +23,9 @@ def add_event(db: Session, event: Event) -> Event:
 
 def delete_event(db: Session, event: Event) -> None:
     db.delete(event)
+
+
+def unassign_manager(db: Session, manager_id: int) -> None:
+    db.query(Event).filter(Event.manager_id == manager_id).update(
+        {Event.manager_id: None}, synchronize_session=False
+    )

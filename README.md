@@ -48,7 +48,7 @@ vercel dev -L
 
 ## Backend environment
 
-Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` to your PostgreSQL connection URL, along with the JWT secret and initial admin's name, email, phone, and password. Install the backend requirements, including the Psycopg 3 PostgreSQL driver. On startup, the backend creates the required tables and creates the admin only if the email is not already registered. Public registration always creates a regular `user`; admins create and assign manager accounts from an event.
+Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` to your PostgreSQL connection URL, along with the JWT secret and initial admin's name, email, phone, and password. `REFRESH_TOKEN_EXPIRE_DAYS` controls refresh-token lifetime. Install the backend requirements, including the Psycopg 3 PostgreSQL driver. On startup, the backend creates the required tables and creates the admin only if the email is not already registered. Public registration always creates a regular `user`; admins create and assign manager accounts from an event. The admin dashboard lists accounts and events and allows admins to delete accounts.
 
 Set the same variables in the deployment environment. Use a managed PostgreSQL database and keep its connection URL in the host's secret environment settings.
 

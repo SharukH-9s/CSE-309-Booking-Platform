@@ -2,12 +2,22 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from schemas import LoginRequest, PasswordChange, TokenResponse, UserProfileUpdate, UserRegister, UserResponse
-from security import create_access_token
+from schemas import (
+    LoginRequest,
+    PasswordChange,
+    RefreshRequest,
+    TokenResponse,
+    UserProfileUpdate,
+    UserRegister,
+    UserResponse,
+)
 from services.auth_service import (
     authenticate_user,
     change_user_password,
+    create_token_pair,
     register_user,
+    revoke_refresh_token,
+    rotate_refresh_token,
     update_user_profile,
 )
 
@@ -22,11 +32,18 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
     user = authenticate_user(db, data.email, data.password)
-    profile = UserResponse.model_validate(user)
-    return TokenResponse(
-        access_token=create_access_token(profile.id),
-        user=profile,
-    )
+    return create_token_pair(db, user)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(data: RefreshRequest, db: Session = Depends(get_db)):
+    return rotate_refresh_token(db, data.refresh_token)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(data: RefreshRequest, db: Session = Depends(get_db)):
+    revoke_refresh_token(db, data.refresh_token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/me", response_model=UserResponse)

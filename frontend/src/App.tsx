@@ -3,25 +3,30 @@ import {
   changePassword,
   createEvent,
   createManager,
+  deleteAdminUser,
   deleteEvent,
   getEvent,
+  getAdminUsers,
   getEvents,
   getMe,
   login,
+  logout as logoutApi,
   register,
-  setToken,
+  setTokens,
   updateMe,
   updateEvent,
 } from "./api"
 import { Event, EventForm, User } from "./types"
 
-type View = "list" | "detail" | "create" | "edit" | "login" | "register" | "manager" | "profile"
+type View = "list" | "detail" | "create" | "edit" | "login" | "register" | "manager" | "profile" | "admin"
 
 const emptyEventForm: EventForm = { title: "", description: "", location: "", event_date: "" }
 
 export default function App() {
   const [view, setView] = useState<View>("list")
   const [events, setEvents] = useState<Event[]>([])
+  const [adminEvents, setAdminEvents] = useState<Event[]>([])
+  const [adminUsers, setAdminUsers] = useState<User[]>([])
   const [selected, setSelected] = useState<Event | null>(null)
   const [eventForm, setEventForm] = useState<EventForm>(emptyEventForm)
   const [user, setUser] = useState<User | null>(null)
@@ -33,7 +38,7 @@ export default function App() {
     const token = localStorage.getItem("access_token")
     if (token) {
       getMe().then(setUser).catch(() => {
-        setToken(null)
+        setTokens(null)
         setUser(null)
       })
     }
@@ -114,7 +119,7 @@ export default function App() {
         email: String(values.get("email")),
         password: String(values.get("password")),
       })
-      setToken(result.access_token)
+      setTokens(result.access_token, result.refresh_token)
       setUser(result.user)
       setError("")
       setView("list")
@@ -136,7 +141,7 @@ export default function App() {
     try {
       await register(account)
       const result = await login({ email: account.email, password: account.password })
-      setToken(result.access_token)
+      setTokens(result.access_token, result.refresh_token)
       setUser(result.user)
       setError("")
       setView("list")
@@ -192,20 +197,56 @@ export default function App() {
         current_password: String(values.get("current_password")),
         new_password: String(values.get("new_password")),
       })
-      event.currentTarget.reset()
+      setTokens(null)
+      setUser(null)
       setError("")
-      setNotice("Password changed.")
+      setNotice("Password changed. Please log in again.")
+      setView("login")
     } catch (err) {
       setError(errorMessage(err, "Could not change password."))
       setNotice("")
     }
   }
 
-  function logout() {
-    setToken(null)
+  async function logout() {
+    const refreshToken = localStorage.getItem("refresh_token")
+    if (refreshToken) {
+      try {
+        await logoutApi(refreshToken)
+      } catch {
+        // Clear the local session even when the server is unreachable.
+      }
+    }
+    setTokens(null)
     setUser(null)
     setView("list")
     void loadEvents()
+  }
+
+  async function openAdminDashboard() {
+    setError("")
+    setView("admin")
+    try {
+      const [users, allEvents] = await Promise.all([getAdminUsers(), getEvents()])
+      setAdminUsers(users)
+      setAdminEvents(allEvents)
+    } catch (err) {
+      setError(errorMessage(err, "Could not load admin dashboard."))
+    }
+  }
+
+  async function handleAdminDeleteUser(userToDelete: User) {
+    if (userToDelete.id === user?.id) return
+    if (!confirm(`Delete ${userToDelete.name}'s account?`)) return
+    try {
+      await deleteAdminUser(userToDelete.id)
+      const [users, allEvents] = await Promise.all([getAdminUsers(), getEvents()])
+      setAdminUsers(users)
+      setAdminEvents(allEvents)
+      setError("")
+    } catch (err) {
+      setError(errorMessage(err, "Could not delete account."))
+    }
   }
 
   function handleEventField(field: keyof EventForm, value: string) {
@@ -223,6 +264,7 @@ export default function App() {
         <button onClick={() => { setError(""); setView("list") }}>← Back to events</button>
         <h1>{isRegister ? "Create account" : "Log in"}</h1>
         {error && <p className="error">{error}</p>}
+        {notice && <p>{notice}</p>}
         <form onSubmit={isRegister ? handleRegister : handleLogin}>
           {isRegister && <div className="field"><label>Name</label><input name="name" required /></div>}
           <div className="field"><label>Email</label><input name="email" type="email" required /></div>
@@ -281,12 +323,55 @@ export default function App() {
     )
   }
 
+  if (view === "admin" && user?.role === "admin") {
+    return (
+      <div className="container">
+        <button onClick={() => setView("list")}>← Back to events</button>
+        <h1>Admin dashboard</h1>
+        {error && <p className="error">{error}</p>}
+        <h2>Events ({adminEvents.length})</h2>
+        {adminEvents.length === 0 ? <p>No events yet.</p> : (
+          <table>
+            <thead><tr><th>Title</th><th>Location</th><th>Date</th><th>Manager</th></tr></thead>
+            <tbody>{adminEvents.map((event) => {
+              const manager = adminUsers.find((account) => account.id === event.manager_id)
+              return <tr key={event.id}>
+                <td>{event.title}</td><td>{event.location}</td><td>{event.event_date}</td>
+                <td>{manager ? `${manager.name} (${manager.email})` : "Unassigned"}</td>
+              </tr>
+            })}</tbody>
+          </table>
+        )}
+        <h2>Accounts ({adminUsers.length})</h2>
+        {adminUsers.length === 0 ? <p>No accounts found.</p> : (
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Assigned event</th><th></th></tr></thead>
+            <tbody>{adminUsers.map((account) => {
+              const assignedEvent = account.role === "manager"
+                ? adminEvents.find((event) => event.manager_id === account.id)
+                : undefined
+              return <tr key={account.id}>
+                <td>{account.name}</td><td>{account.email}</td><td>{account.phone ?? "—"}</td>
+                <td>{account.role}</td><td>{assignedEvent?.title ?? (account.role === "manager" ? "Unassigned" : "—")}</td>
+                <td><button
+                  className="danger"
+                  disabled={account.id === user.id}
+                  onClick={() => void handleAdminDeleteUser(account)}
+                >Delete</button></td>
+              </tr>
+            })}</tbody>
+          </table>
+        )}
+      </div>
+    )
+  }
+
   if (view === "list") {
     return (
       <div className="container">
         <h1>Event Booking Platform</h1>
         <div className="actions">
-          {user ? <><span>{user.name} ({user.role})</span><button onClick={() => { setError(""); setNotice(""); setView("profile") }}>Profile</button><button onClick={logout}>Log out</button></> : <>
+          {user ? <><span>{user.name} ({user.role})</span><button onClick={() => { setError(""); setNotice(""); setView("profile") }}>Profile</button>{user.role === "admin" && <button onClick={() => void openAdminDashboard()}>Admin dashboard</button>}<button onClick={() => void logout()}>Log out</button></> : <>
             <button onClick={() => { setError(""); setView("login") }}>Log in</button>
             <button onClick={() => { setError(""); setView("register") }}>Register</button>
           </>}
