@@ -58,3 +58,15 @@ export interface EventForm {
   location: string
   event_date: string
 }
+
+export interface Booking {
+  id: number
+  event_id: number
+  user_id: number
+  created_at: string
+  user_name?: string | null
+  user_email?: string | null
+  event_title?: string | null
+  event_date?: string | null
+  event_location?: string | null
+}

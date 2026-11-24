@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from schemas import EventCreate, EventResponse, EventUpdate
-from services import event_service
+from schemas import BookingResponse, EventCreate, EventResponse, EventUpdate
+from services import booking_service, event_service
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -23,6 +23,15 @@ def get_event(
     db: Session = Depends(get_db),
 ):
     return event_service.get_event(db, event_id, request.state.current_user)
+
+
+@router.get("/{event_id}/bookings", response_model=list[BookingResponse])
+def get_event_bookings(
+    event_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return booking_service.get_event_bookings(db, event_id, request.state.current_user)
 
 
 @router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
