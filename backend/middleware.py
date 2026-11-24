@@ -7,6 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from database import SessionLocal
 from models import User
+from repositories.ban_repository import is_user_banned
 from repositories.user_repository import get_user_by_id
 from security import decode_access_token
 
@@ -15,6 +16,7 @@ EVENT_BOOKINGS_PATH = re.compile(r"^/api/events/\d+/bookings$")
 BOOKING_ITEM_PATH = re.compile(r"^/api/bookings/\d+$")
 BOOKING_EVENT_PATH = re.compile(r"^/api/bookings/event/\d+$")
 ADMIN_USER_ITEM_PATH = re.compile(r"^/api/admin/users/\d+$")
+ADMIN_USER_BAN_PATH = re.compile(r"^/api/admin/users/\d+/ban$")
 
 
 class RBACMiddleware(BaseHTTPMiddleware):
@@ -30,8 +32,9 @@ class RBACMiddleware(BaseHTTPMiddleware):
         if auth_error is not None:
             return auth_error
 
-        # Expose the database-backed user to handlers and services for resource scoping.
+        # Expose the database-backed user and ban status to handlers and services.
         request.state.current_user = user
+        request.state.is_banned = bool(user and getattr(user, "is_banned", False))
 
         if policy is not None:
             allowed_roles, authentication_required = policy
@@ -43,6 +46,14 @@ class RBACMiddleware(BaseHTTPMiddleware):
                 )
             if user is not None and allowed_roles is not None and user.role not in allowed_roles:
                 return JSONResponse(status_code=403, content={"detail": "You do not have permission"})
+
+        if (
+            user is not None
+            and request.state.is_banned
+            and request.method == "POST"
+            and request.url.path == "/api/bookings"
+        ):
+            return JSONResponse(status_code=403, content={"detail": "Your account is banned from booking events"})
 
         return await call_next(request)
 
@@ -69,6 +80,8 @@ class RBACMiddleware(BaseHTTPMiddleware):
         if method == "POST" and path == "/api/managers":
             return {"admin"}, True
         if method == "GET" and path == "/api/admin/users":
+            return {"admin"}, True
+        if method in {"POST", "DELETE"} and ADMIN_USER_BAN_PATH.fullmatch(path):
             return {"admin"}, True
         if method == "DELETE" and ADMIN_USER_ITEM_PATH.fullmatch(path):
             return {"admin"}, True
@@ -104,6 +117,7 @@ class RBACMiddleware(BaseHTTPMiddleware):
                     content={"detail": "Invalid or expired token"},
                     headers={"WWW-Authenticate": "Bearer"},
                 )
+            user.is_banned = is_user_banned(db, user.id)
             # Copy scalar values before closing the database session.
             db.expunge(user)
             return user, None

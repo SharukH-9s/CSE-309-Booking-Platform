@@ -54,6 +54,31 @@ button.danger:hover {
   background: #a71d2a;
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.banned-banner {
+  background: #fee2e2;
+  border: 1px solid #dc3545;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin: 12px 0;
+  font-weight: bold;
+}
+
+.badge-banned {
+  color: #991b1b;
+  font-weight: bold;
+}
+
+.badge-active {
+  color: #166534;
+  font-weight: bold;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
