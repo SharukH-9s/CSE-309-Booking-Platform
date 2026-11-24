@@ -79,6 +79,10 @@ class RBACMiddleware(BaseHTTPMiddleware):
             return {"admin", "manager", "user"}, True
         if method == "POST" and path == "/api/managers":
             return {"admin"}, True
+        if method == "GET" and path == "/api/admin/stats":
+            return {"admin"}, True
+        if method == "GET" and path == "/api/admin/bookings":
+            return {"admin"}, True
         if method == "GET" and path == "/api/admin/users":
             return {"admin"}, True
         if method in {"POST", "DELETE"} and ADMIN_USER_BAN_PATH.fullmatch(path):

@@ -71,3 +71,10 @@ export interface Booking {
   event_date?: string | null
   event_location?: string | null
 }
+
+export interface AdminStats {
+  total_bookings: number
+  total_events: number
+  total_users: number
+  banned_users: number
+}

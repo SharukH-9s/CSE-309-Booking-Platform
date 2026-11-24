@@ -2,16 +2,31 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from models import User
-from repositories import ban_repository, event_repository
+from repositories import ban_repository, booking_repository, event_repository, user_repository
 from repositories.user_repository import count_admins, delete_user, get_user_by_id, list_users
 
 
-def get_all_users(db: Session) -> list[User]:
+def get_all_users(db: Session, banned: bool | None = None) -> list[User]:
     users = list_users(db)
     banned_ids = ban_repository.get_banned_user_ids(db)
     for account in users:
         account.is_banned = account.id in banned_ids
+    if banned is not None:
+        return [account for account in users if account.is_banned is banned]
     return users
+
+
+def get_admin_stats(db: Session) -> dict[str, int]:
+    return {
+        "total_bookings": booking_repository.count_bookings(db),
+        "total_events": event_repository.count_events(db),
+        "total_users": user_repository.count_users(db),
+        "banned_users": ban_repository.count_banned_users(db),
+    }
+
+
+def get_all_bookings(db: Session) -> list[dict]:
+    return booking_repository.list_all_bookings(db)
 
 
 def ban_user_account(db: Session, user_id: int, current_admin_id: int) -> User:

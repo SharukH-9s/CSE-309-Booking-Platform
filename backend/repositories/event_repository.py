@@ -1,6 +1,11 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models import Event
+
+
+def count_events(db: Session) -> int:
+    return db.query(func.count(Event.id)).scalar() or 0
 
 
 def list_events(db: Session) -> list[Event]:

@@ -1,6 +1,11 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models import BannedUser
+
+
+def count_banned_users(db: Session) -> int:
+    return db.query(func.count(BannedUser.id)).scalar() or 0
 
 
 def is_user_banned(db: Session, user_id: int) -> bool:
