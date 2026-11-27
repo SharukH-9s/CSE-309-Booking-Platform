@@ -1,37 +1,4 @@
 
-<div align="center">
-
-# Independent University, Bangladesh
-
-## CSE309 Web Application & Internet
-
-### Final Project Submission Report
-
-**Submitted by**<br>
-Name: Md. Mohaiminul Hassan Sharukh<br>
-Student ID: 2030293<br>
-Section: 05<br>
-Team Number:<br>
-
-**Project Title:**<br>
-Event Booking Platform
-
-**Vercel URL:** [https://cse-309-booking-platform.vercel.app/](https://cse-309-booking-platform.vercel.app/)<br>
-**GitHub Repository:** [SharukH-9s/CSE-309-Booking-Platform](https://github.com/SharukH-9s/CSE-309-Booking-Platform)
-
-**Submitted To**<br>
-Sayef Reyadh<br>
-Adjunct Lecturer<br>
-Department of Computer Science & Engineering<br>
-Independent University, Bangladesh
-
-**Semester:** Autumn 2026<br>
-**Date of Submission:** 25-11-26
-
-</div>
-
-<div style="page-break-after: always;"></div>
-
 # Executive Summary
 
 ## 1.1 Project overview
@@ -57,9 +24,8 @@ The Event Booking Platform helps students and campus visitors discover events, w
 |---|---|
 | GitHub repository | [SharukH-9s/CSE-309-Booking-Platform](https://github.com/SharukH-9s/CSE-309-Booking-Platform) |
 | Vercel frontend | [Event Booking Platform](https://cse-309-booking-platform.vercel.app/) |
-| API | [Event Booking Platform API](https://cse-309-booking-platform.vercel.app/api) |
 | API docs | [Swagger UI](https://cse-309-booking-platform.vercel.app/api/docs#/) |
-| Video demo | [https://drive.google.com/file/d/1nD4DwmDDG9_D6RwWKST1bavX9i4HxisO/view?usp=sharing] |
+| Video demo | [Add video demo link] |
 
 # Part A. Product Requirements (PRD)
 
@@ -362,7 +328,7 @@ Requirements below describe implemented behavior. The API returns HTTP 422 for i
 - **Alternative/error flows:** No log data is available; audit-log filters and export are also not available.
 - **Postconditions:** No audit-log record is created or returned by this feature in the current release.
 
-### Figure 1. Use case diagram
+### Diagram: Use case diagram
 
 ```mermaid
 flowchart LR
@@ -446,7 +412,7 @@ Versions above are the dependency ranges in the repository, not exact locked run
 
 The frontend and API are configured as Vercel services. The API connects to PostgreSQL. The current system has no audit-log store or audit-log endpoint, so no audit-log component appears in the architecture.
 
-### Figure 2. System architecture
+### Diagram: system architecture
 
 ```mermaid
 flowchart LR
@@ -523,7 +489,7 @@ frontend/
 
 ## C4. Data model
 
-### Figure 3. Entity relationship diagram
+### Diagram: entity relationship diagram
 
 ```mermaid
 erDiagram
@@ -661,7 +627,7 @@ The API prefix is `/api`; there is no separate version segment. JSON errors use 
 
 ## C6. JWT authentication design
 
-### Figure 4. Login, request, refresh, and logout
+### Diagram: login, request, refresh, and logout
 
 ```mermaid
 sequenceDiagram
@@ -736,7 +702,7 @@ return None
 
 The shared middleware applies each returned role set before invoking a handler, and rejects `POST /api/bookings` with HTTP 403 when `request.state.is_banned` is true (backed by a second `is_user_banned` check in `booking_service.create_booking`). For event item routes, the service then checks whether the manager owns the event. To add a role, add its value to the user-role validation and define the route policies and service ownership behavior that role needs. There are no independent permission constants to extend. Admin account deletion has additional checks that prevent self-deletion and deletion of the last admin, and admin ban endpoints prevent self-banning and banning non-`user` accounts.
 
-### Figure 5. Authorization flow
+### Diagram: authorization flow
 
 ```mermaid
 flowchart TD
@@ -760,7 +726,7 @@ flowchart TD
 
 The frontend has one admin dashboard view. It loads platform summary metrics (`Total Bookings`, `Total Events`, `Total Users`, `Banned Users`), all events, all users, and all platform bookings. It displays metric cards at the top, an Events table with manager assignments, an Accounts table with `All / Active / Banned` filter buttons and Ban/Unban/Delete controls, and a Bookings table where admins can cancel any booking. There are no text search controls, pagination, bulk actions, CSV export, security view, or audit-log events in the current implementation.
 
-### Figure 6. Admin page and endpoint calls
+### Diagram: admin page and endpoint calls
 
 ```mermaid
 flowchart LR
@@ -809,7 +775,7 @@ The repository's `vercel.json` declares a backend service rooted at `backend` wi
 
 For a new deployment, connect the repository in Vercel, keep the project root at the repository root, set the environment variables in the Vercel project settings, and deploy. To redeploy after a code change, push to the connected deployment branch or start a deployment from the Vercel project. No database values or secret values belong in this report.
 
-### Figure 7. Deployment layout
+### Diagram: deployment layout
 
 ```mermaid
 flowchart LR
@@ -851,64 +817,57 @@ No automated API test suite or frontend test command is currently included in th
 
 # Part D. Evidence: Screenshots of the Running Application
 
-Screenshot evidence captions are retained below; the visual files are omitted from this report copy. Token values have been masked in the S8 evidence description.
+Screenshots supplied for the report are stored in `images/screenshots/` and embedded below. Token values have been masked in S8 before inclusion.
 
 ## D1. User Side
 
 ### S1. Login validation
 
+![S1: Login page showing an invalid email or password message](../images/screenshots/S1.png)
 
 ### S2. Logged-in user page
 
+![S2: Logged-in user event list](../images/screenshots/S2.png)
 
 ### S3. Profile and password form
 
+![S3: Profile page with the incorrect current password message](../images/screenshots/S3.png)
 
 ### S5. Group permissions
 
+![S5: Screenshot supplied for the group page evidence](../images/screenshots/S5.png)
 
 ### S6. RBAC denial
 
-
-### S22. Banned user notice
-
-
-### S23. Booking confirmation
-
-
-### S24. Profile and bookings
-
+![S6: Add Event page showing an authentication error and the API response in DevTools](../images/screenshots/S6.png)
 
 ## D2. Security Behaviour
 
 ### S7. Authorization header and expired token
 
+![S7: Network panel screenshot supplied for token evidence](../images/screenshots/S7.png)
 
 ### S8. Refresh request
 
+![S8: Refresh request and response in DevTools; token values masked in this report copy](../images/screenshots/S8.png)
 
 ## D3. Admin Dashboard
 
-
-### S21. Dashboard account list
-
-
-### S25. Banned account management
-
-
-### S26. Manager booking cancellation
-
+![D3: Admin dashboard showing events and accounts](../images/screenshots/D3.png)
 
 ## D4. Deployment
 
 ### S18. Vercel production deployment and domain
 
+![S18: Vercel production deployment and domain](../images/screenshots/S18.png)
 
 ### S19. Vercel environment variable names
 
+![S19: Vercel environment variable names with values hidden](../images/screenshots/S19.png)
 
 ### S20. Live API documentation
 
+![S20: Live FastAPI documentation page](../images/screenshots/S20.png)
 
 ## D5. Tests
 
@@ -940,19 +899,19 @@ Screenshot evidence captions are retained below; the visual files are omitted fr
    Copy-Item backend/.env.example backend/.env
    ```
 
-3. Edit `backend/.env` with values for the local database and admin account. Keep database credentials, the JWT secret, and the admin password in this local environment file; do not include their values in the report.
+3. Edit `backend/.env` with values for the local database and admin account. These are examples only; replace the database username, password, host, database name, and local admin password with values for the local setup.
 
-   | Variable | Configuration |
+   | Variable | Example value |
    |---|---|
-   | `DATABASE_URL` | Set privately in `backend/.env`. |
-   | `SECRET_KEY` | Generate and set privately in `backend/.env`. |
+   | `DATABASE_URL` | `postgresql+psycopg://postgres:local-password@localhost:5432/booking_platform` |
+   | `SECRET_KEY` | `local-development-only-change-this-to-a-long-random-value` |
    | `ALGORITHM` | `HS256` |
    | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` |
    | `REFRESH_TOKEN_EXPIRE_DAYS` | `7` |
    | `ADMIN_NAME` | `Project Admin` |
-   | `ADMIN_EMAIL` | Configure a local admin account in `backend/.env`. |
-   | `ADMIN_PHONE` | Configure a local admin account in `backend/.env`. |
-   | `ADMIN_PASSWORD` | Set privately in `backend/.env`; value omitted. |
+   | `ADMIN_EMAIL` | `admin@example.com` |
+   | `ADMIN_PHONE` | `+8801000000000` |
+   | `ADMIN_PASSWORD` | `LocalAdmin-ChangeMe-123!` |
 
 4. In a terminal at the repository root, create and activate the Python environment, install the backend packages, and start FastAPI:
 
@@ -1079,7 +1038,17 @@ The library rows list the direct dependencies declared in project manifests. The
 
 
 
-## Appendix. Video Demo
+## Appendix. Test Accounts and Video Demo
 
 
-video link - https://drive.google.com/file/d/1nD4DwmDDG9_D6RwWKST1bavX9i4HxisO/view?usp=sharing
+These credentials are for the project demo. All listed accounts use the same password: `123456789`.
+
+| Name | Email | Phone | Role | Assigned event |
+|---|---|---|---|---|
+| Sharukh | 2030293@iub.edu.bd | 01766604503 | admin | — |
+| Manager 1 | mohaiminul.hassan9988@gmail.com | — | manager | Event 1 |
+| User 1 | yorhanines9@gmail.com | — | user | — |
+| User 2 | ninesyorha9@gmail.com | — | user | — |
+| User 3 | gzmask9@gmail.com | — | user | — |
+
+video link - 
